@@ -4,35 +4,39 @@ namespace Tests\Unit;
 
 use App\Services\Crawler;
 use Tests\TestCase;
+use InvalidArgumentException;
 
 class CrawlerTest extends TestCase
 {
 
-    public function testRun()
+    /**
+     * Need to initialize Crawler with a valid URL containing scheme and domain.
+     */
+    public function testConstructorBadArgument()
     {
-        $c = new Crawler();
-        $c->setInternalDomain('agencyanalytics.com');
-        $c->addUrl('https://agencyanalytics.com');
-        $c->run();
-        var_dump($c);
+        $this->expectException(InvalidArgumentException::class);
+        $c = new Crawler('foobar');
     }
 
     /**
-     * A basic unit test example.
-     *
-     * @return void
+     * test will fail by exception being thrown
      */
-    public function testParse()
+    public function testConstructorGoodArgument()
     {
-        $html = file_get_contents(__DIR__ . '/../../docs/agencyanalytics.com.html');
-        $c = new Crawler();
-        $values = $c->parse($html);
+        $c = new Crawler('https://agencyanalytics.com');
+        $this->assertInstanceOf(Crawler::class, $c);
+    }
+
+    public function testRun()
+    {
+        $c = new Crawler('https://agencyanalytics.com');
+        $c->run();
+        var_dump($c->report());
     }
 
     public function testIsLinkInternal()
-    {
-        $c = new Crawler();
-        $c->setInternalDomain('agencyanalytics.com');
+    { 
+        $c = new Crawler('https://agencyanalytics.com');
         
         $this->assertTrue($c->isLinkInternal('/'));
         $this->assertTrue($c->isLinkInternal('/foo.bar'));

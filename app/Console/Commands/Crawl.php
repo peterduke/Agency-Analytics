@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\Crawler;
 use Illuminate\Console\Command;
 
 class Crawl extends Command
@@ -11,7 +12,7 @@ class Crawl extends Command
      *
      * @var string
      */
-    protected $signature = 'crawl {url} {numPages?}';
+    protected $signature = 'crawl {url}';
 
     /**
      * The console command description.
@@ -37,6 +38,9 @@ class Crawl extends Command
      */
     public function handle()
     {
-        return 0;
+        $url = $this->argument('url');
+        $c = new Crawler($url);
+        $c->run();
+        print_r($c->report());
     }
 }

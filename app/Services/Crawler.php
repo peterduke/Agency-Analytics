@@ -1,13 +1,16 @@
 <?php
 
 namespace App\Services;
+use InvalidArgumentException;
+use GuzzleHttp\Client as Guzzle;
 
 class Crawler
 {
     const MAX_PAGES_TO_CRAWL = 5;
     protected $toCrawl = [];
     protected $crawled = [];
-    protected $internalDomain = '';
+    protected $domain;
+    protected $scheme;
     protected $images = [];
     protected $intLinks = [];
     protected $extLinks = [];
@@ -15,13 +18,33 @@ class Crawler
     protected $wordCount = 0;
     protected $titleLength = 0;
 
-    public function setInternalDomain($domain)
+    /**
+     * 
+     * @param string $url The initial url to start the scraping 
+     */
+    public function __construct($url)
     {
-        $this->internalDomain = $domain;
-    }
+        // save the scheme and domain so we can follow internal links
+        $parsed = parse_url($url);
+        if (!isset($parsed['scheme'], $parsed['host'])) {
+            throw new InvalidArgumentException('Need to start with a valid scheme and host.');
+        }
+        $this->domain = $parsed['host'];
+        $this->scheme = $parsed['scheme'];
 
-    public function addUrl($url)
-    {
+        // start the scraping with $url. 
+        // Trim domain and scheme off the beginning, would handle this better on a production app
+        if (isset($parsed['path'])) {
+            $url = $parsed['path'];
+        } else {
+            $url = '/';
+        }
+        if (isset($parsed['query'])) {
+            $url .= '?' . $parsed['query'];
+        }
+        if (isset($parsed['fragment'])) {
+            $url .= '' . $parsed['fragment'];
+        }
         $this->toCrawl[$url] = true;
     }
     
@@ -35,22 +58,26 @@ class Crawler
             $url = key($this->toCrawl);
             unset($this->toCrawl[$url]);
 
-            // time page load
-            $startTime = microtime(true);
-            $html = $this->load($url);
-            $elapsed = microtime(true) - $startTime;
-            $this->pageLoad += $elapsed;
+            // make sure we haven't already crawled this page
+            if (array_key_exists($url, $this->crawled)) {
+                continue;
+            }
+
+            // get the HTML and the load time
+            $loaded = $this->load($url);
+            $html = $loaded['html'];
+            $status = $loaded['status'];
+            $this->pageLoad += $loaded['pageLoad'];
 
             // get the stats and accumulate them in properties of $this
 
             $values = $this->parse($html);
 
             foreach($values['imgs'] as $img) {
-                $this->images[$this->normalize($img)] = true;
+                $this->images[$img] = true;
             }
 
             foreach($values['links'] as $href) {
-                $href = $this->normalize($href);
                 if ($this->isLinkInternal($href)) {
                     $this->intLinks[$href] = true;
                 } else {
@@ -63,21 +90,31 @@ class Crawler
             $this->wordCount += $values['wordCount'];
 
             // record that we crawled this page
-            $this->crawled[$url] = true;
+            $this->crawled[$url] = $status;
+
+            // add the internal links to 'toCrawl' array
+            $this->toCrawl = array_merge($this->toCrawl, $this->intLinks);
         }
     }
 
     /**
      * Load HTML from the given url
      * 
+     * Also keep track of and return page load time
+     * 
      * @param string $url
      * 
-     * @return string
+     * @return array
      */
     public function load($url)
     {
-        // TODO load the file with curl or guzzle
-        return file_get_contents(base_path('docs/agencyanalytics.com.html'));
+        $baseUrl = $this->scheme . '://' . $this->domain;
+        $client = new Guzzle();
+        $startTime = microtime(true);
+        $response = $client->request('GET', $baseUrl . $url);
+        $elapsed = microtime(true) - $startTime;
+        $this->pageLoad += $elapsed;
+        return ['html' => (string) $response->getBody(), 'pageLoad' => $elapsed, 'status' => $response->getStatusCode()];
     }
 
     /**
@@ -130,6 +167,8 @@ class Crawler
 
     /**
      * Is the link an internal link?
+     * 
+     * @return bool
      */
     public function isLinkInternal($href)
     {
@@ -138,22 +177,10 @@ class Crawler
             return true;
         }
 
-        // trim the schema off the beginning
+        // trim the scheme off the beginning
         $href = preg_replace('/^((http(s?):)?\/\/)/', '', $href);
         // see if it starts with the local domain
-        return substr($href, 0, strlen($this->internalDomain)) == $this->internalDomain;
-    }
-
-    /**
-     * Normalize the url.
-     * 
-     * Currently only trims backslash from end but could be extended.
-     */
-    public function normalize($url)
-    {
-        if ($url != '\\') {
-            return rtrim($url, '\\');
-        }
+        return substr($href, 0, strlen($this->domain)) == $this->domain;
     }
 
     /**
@@ -163,6 +190,14 @@ class Crawler
      */
     public function report()
     {
-
+        $crawled = $this->crawled;
+        $count = count($crawled);
+        $img = count($this->images);
+        $intLinks = count($this->intLinks);
+        $extLinks = count($this->extLinks);
+        $pageLoad = $this->pageLoad / $count;
+        $wordCount = $this->wordCount / $count;
+        $titleLength = $this->titleLength / $count;
+        return compact('count', 'crawled', 'img', 'intLinks', 'extLinks', 'pageLoad', 'wordCount', 'titleLength');
     }
 }
