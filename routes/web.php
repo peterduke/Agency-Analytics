@@ -14,4 +14,5 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::get('/', CrawlController::class);
+Route::get('/', [CrawlController::class, 'index']);
+Route::post('/', [CrawlController::class, 'crawl']);
