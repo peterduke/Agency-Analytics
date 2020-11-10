@@ -36,7 +36,7 @@ class Crawl extends Command
      *
      * @return int
      */
-    public function handle()
+    public function handle(): void
     {
         $url = $this->argument('url');
         $c = new Crawler($url);

@@ -13,12 +13,12 @@ class CrawlController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
-    public function index(Request $request)
+    public function index(Request $request): \Illuminate\Http\Response
     {
         return view('layout');
     }
 
-    public function crawl(Request $request)
+    public function crawl(Request $request): \Illuminate\Http\Response
     {
         // $url = $request->input('url');
         $url = 'https://agencyanalytics.com/';

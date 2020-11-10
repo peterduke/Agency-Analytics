@@ -1,28 +1,26 @@
 <?php
+declare(strict_types=1);
 
 namespace App\Services;
+
 use InvalidArgumentException;
 use GuzzleHttp\Client as Guzzle;
 
 class Crawler
 {
     const MAX_PAGES_TO_CRAWL = 5;
-    protected $toCrawl = [];
-    protected $crawled = [];
-    protected $domain;
-    protected $scheme;
-    protected $images = [];
-    protected $intLinks = [];
-    protected $extLinks = [];
-    protected $pageLoad = 0;
-    protected $wordCount = 0;
-    protected $titleLength = 0;
+    protected array $toCrawl = [];
+    protected array $crawled = [];
+    protected string $domain;
+    protected string $scheme;
+    protected array $images = [];
+    protected array $intLinks = [];
+    protected array $extLinks = [];
+    protected float $pageLoad = 0;
+    protected float $wordCount = 0;
+    protected int $titleLength = 0;
 
-    /**
-     * 
-     * @param string $url The initial url to start the scraping 
-     */
-    public function __construct($url)
+    public function __construct(string $url)
     {
         // save the scheme and domain so we can follow internal links
         $parsed = parse_url($url);
@@ -48,7 +46,7 @@ class Crawler
         $this->toCrawl[$url] = true;
     }
     
-    public function run()
+    public function run(): void
     {
         while ($this->toCrawl && count($this->crawled) < self::MAX_PAGES_TO_CRAWL) { // while there are still pages to crawl, and we haven't gone over the limit
             
@@ -101,12 +99,8 @@ class Crawler
      * Load HTML from the given url
      * 
      * Also keep track of and return page load time
-     * 
-     * @param string $url
-     * 
-     * @return array
      */
-    public function load($url)
+    public function load(string $url): array
     {
         $baseUrl = $this->scheme . '://' . $this->domain;
         $client = new Guzzle();
@@ -120,11 +114,8 @@ class Crawler
     /**
      * Parse the given HTML for desired statistics
      * 
-     * @param string $html
-     * 
-     * @return void
      */
-    public function parse($html)
+    public function parse(string $html): array
     {
         $doc = new \DOMDocument();
         @$doc->loadHTML($html);
@@ -167,10 +158,8 @@ class Crawler
 
     /**
      * Is the link an internal link?
-     * 
-     * @return bool
      */
-    public function isLinkInternal($href)
+    public function isLinkInternal(string $href): bool
     {
         // urls starting with a single slash are internal
         if ($href == '/' || $href[0] == '/' && $href[1] != '/') {
@@ -188,7 +177,7 @@ class Crawler
      * 
      * @return array
      */
-    public function report()
+    public function report(): array
     {
         $crawled = $this->crawled;
         $count = count($crawled);
